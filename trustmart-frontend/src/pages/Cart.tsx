@@ -1,18 +1,21 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ShoppingCart, ArrowLeft, CreditCard, Loader2, CheckCircle } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, CreditCard, Loader2, CheckCircle, LogIn } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 import { commandApi } from '@/lib/api';
 import { CartItem } from '@/components/cart/CartItem';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { PageLoader } from '@/components/ui/loading-spinner';
 import { toast } from 'sonner';
 
 export default function Cart() {
   const queryClient = useQueryClient();
   const { items, totalPrice, clearCart } = useCart();
+  const { isAuthenticated, isLoading: authLoading, login } = useAuth();
   const [orderSuccess, setOrderSuccess] = useState(false);
 
   const createOrderMutation = useMutation({
@@ -28,6 +31,44 @@ export default function Cart() {
       toast.error(error.message || 'Failed to place order');
     },
   });
+
+  // Show loading while checking auth
+  if (authLoading) return <PageLoader />;
+
+  // Require authentication for checkout
+  if (!isAuthenticated && items.length > 0) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex items-center gap-4">
+          <Link to="/products">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
+              Shopping Cart
+            </h1>
+            <p className="text-muted-foreground">
+              You have {items.length} item(s) in your cart
+            </p>
+          </div>
+        </div>
+
+        <EmptyState
+          icon={LogIn}
+          title="Login Required"
+          description="Please login to proceed with checkout"
+          action={
+            <Button onClick={login} className="gap-2">
+              <LogIn className="h-4 w-4" />
+              Login to Checkout
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
 
   const handleCheckout = () => {
     const orderItems = items.map((item) => ({

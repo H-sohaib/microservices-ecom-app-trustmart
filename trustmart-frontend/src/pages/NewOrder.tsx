@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Minus, Trash2, ShoppingBag, ArrowLeft, Loader2, CheckCircle, Package } from 'lucide-react';
+import { Plus, Minus, Trash2, ShoppingBag, ArrowLeft, Loader2, CheckCircle, Package, LogIn } from 'lucide-react';
 import { productApi, commandApi, ProductResponse, CommandItemRequest } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -20,12 +21,14 @@ interface OrderItem {
 
 export default function NewOrder() {
   const queryClient = useQueryClient();
+  const { isAuthenticated, isLoading: authLoading, isAdmin, login } = useAuth();
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [orderSuccess, setOrderSuccess] = useState(false);
 
   const { data: products, isLoading, error, refetch } = useQuery({
     queryKey: ['products'],
     queryFn: productApi.getAll,
+    enabled: isAuthenticated,
   });
 
   const createOrderMutation = useMutation({
@@ -41,6 +44,44 @@ export default function NewOrder() {
       toast.error(error.message || 'Failed to create order');
     },
   });
+
+  // Show loading while checking auth
+  if (authLoading) return <PageLoader />;
+
+  // Require authentication
+  if (!isAuthenticated) {
+    return (
+      <EmptyState
+        icon={LogIn}
+        title="Login Required"
+        description="Please login to create a new order"
+        action={
+          <Button onClick={login} className="gap-2">
+            <LogIn className="h-4 w-4" />
+            Login
+          </Button>
+        }
+      />
+    );
+  }
+
+  // Admin cannot create orders
+  if (isAdmin) {
+    return (
+      <EmptyState
+        icon={Package}
+        title="Admin Access Restricted"
+        description="Administrators cannot create orders. Only clients can place orders."
+        action={
+          <Link to="/orders">
+            <Button className="gap-2">
+              View All Orders
+            </Button>
+          </Link>
+        }
+      />
+    );
+  }
 
   const addToOrder = (product: ProductResponse) => {
     const existing = orderItems.find(item => item.product.productId === product.productId);

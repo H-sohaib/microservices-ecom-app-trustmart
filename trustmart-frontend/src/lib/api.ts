@@ -1,3 +1,5 @@
+import keycloak from './keycloak';
+
 const API_BASE_URL = 'http://localhost:8083';
 
 // Types based on OpenAPI specs
@@ -43,6 +45,8 @@ export interface CommandResponse {
   date: string;
   status: CommandStatus;
   totalPrice: number;
+  userId: string;
+  username: string;
   items: CommandItemResponse[];
 }
 
@@ -60,6 +64,12 @@ export class ApiError extends Error {
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new ApiError(401, 'Unauthorized. Please login.');
+    }
+    if (response.status === 403) {
+      throw new ApiError(403, 'Access denied. You do not have permission to perform this action.');
+    }
     const errorMessage = await response.text().catch(() => 'An error occurred');
     throw new ApiError(response.status, errorMessage || `HTTP error! status: ${response.status}`);
   }
@@ -72,20 +82,37 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return {} as T;
 }
 
+async function getAuthHeaders(): Promise<HeadersInit> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (keycloak.authenticated) {
+    try {
+      // Refresh token if it expires within 30 seconds
+      await keycloak.updateToken(30);
+      headers['Authorization'] = `Bearer ${keycloak.token}`;
+    } catch (error) {
+      console.error('Failed to refresh token:', error);
+    }
+  }
+
+  return headers;
+}
+
 async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  requiresAuth: boolean = false
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   
-  const defaultHeaders: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
+  const headers = await getAuthHeaders();
 
   const config: RequestInit = {
     ...options,
     headers: {
-      ...defaultHeaders,
+      ...headers,
       ...options.headers,
     },
   };
@@ -180,5 +207,80 @@ export const commandApi = {
   cancel: (commandId: number) => 
     apiRequest<void>(`/api/commands/${commandId}/cancel`, {
       method: 'POST',
+    }),
+};
+
+// User types for Keycloak
+export interface UserResponse {
+  id: string;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  enabled: boolean;
+  emailVerified: boolean;
+  createdTimestamp: number;
+}
+
+export interface CreateUserRequest {
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  password: string;
+}
+
+export interface UpdateUserRequest {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  enabled?: boolean;
+}
+
+// User API (calls to gateway which proxies to a user service)
+export const userApi = {
+  getAll: () =>
+    apiRequest<UserResponse[]>('/api/users'),
+
+  getById: (userId: string) =>
+    apiRequest<UserResponse>(`/api/users/${userId}`),
+
+  create: (user: CreateUserRequest) =>
+    apiRequest<UserResponse>('/api/users', {
+      method: 'POST',
+      body: JSON.stringify(user),
+    }),
+
+  update: (userId: string, user: UpdateUserRequest) =>
+    apiRequest<UserResponse>(`/api/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(user),
+    }),
+
+  delete: (userId: string) =>
+    apiRequest<void>(`/api/users/${userId}`, {
+      method: 'DELETE',
+    }),
+
+  toggleEnabled: (userId: string, enabled: boolean) =>
+    apiRequest<UserResponse>(`/api/users/${userId}/enabled`, {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled }),
+    }),
+};
+
+// Public registration API (no auth required)
+export const authApi = {
+  register: (user: CreateUserRequest) =>
+    fetch(`http://localhost:8083/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(user),
+    }).then(async (response) => {
+      if (!response.ok) {
+        const error = await response.text();
+        throw new ApiError(response.status, error || 'Registration failed');
+      }
+      return response.json();
     }),
 };

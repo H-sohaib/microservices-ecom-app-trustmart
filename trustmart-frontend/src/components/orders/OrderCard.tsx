@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { Eye, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Eye, Trash2, ChevronDown, ChevronUp, User } from 'lucide-react';
 import { useState } from 'react';
 import { CommandResponse, CommandStatus, ProductResponse } from '@/lib/api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -20,17 +20,30 @@ interface OrderCardProps {
   onStatusChange?: (orderId: number, status: CommandStatus) => void;
   onDelete?: (order: CommandResponse) => void;
   onEdit?: (order: CommandResponse) => void;
+  onCancel?: (order: CommandResponse) => void;
   isUpdating?: boolean;
+  showUsername?: boolean; // Show who made the order (for admin)
 }
 
-const statusOptions: CommandStatus[] = [
-  'PENDING',
-  'CONFIRMED',
-  'PROCESSING',
-  'SHIPPED',
-  'DELIVERED',
-  'CANCELLED',
-];
+// Define valid status transitions based on business logic
+const getValidNextStatuses = (currentStatus: CommandStatus): CommandStatus[] => {
+  switch (currentStatus) {
+    case 'PENDING':
+      return ['PENDING', 'CONFIRMED', 'CANCELLED'];
+    case 'CONFIRMED':
+      return ['CONFIRMED', 'PROCESSING', 'CANCELLED'];
+    case 'PROCESSING':
+      return ['PROCESSING', 'SHIPPED'];
+    case 'SHIPPED':
+      return ['SHIPPED', 'DELIVERED'];
+    case 'DELIVERED':
+      return ['DELIVERED']; // No transitions allowed
+    case 'CANCELLED':
+      return ['CANCELLED']; // No transitions allowed
+    default:
+      return [currentStatus];
+  }
+};
 
 export function OrderCard({
   order,
@@ -38,7 +51,9 @@ export function OrderCard({
   onStatusChange,
   onDelete,
   onEdit,
+  onCancel,
   isUpdating,
+  showUsername = false,
 }: OrderCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -59,6 +74,12 @@ export function OrderCard({
                 Order #{order.commandId}
               </span>
               <StatusBadge status={order.status} />
+              {showUsername && order.username && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                  <User className="h-3 w-3" />
+                  {order.username}
+                </span>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">{formattedDate}</p>
           </div>
@@ -121,13 +142,13 @@ export function OrderCard({
                   onValueChange={(value) =>
                     onStatusChange(order.commandId, value as CommandStatus)
                   }
-                  disabled={isUpdating}
+                  disabled={isUpdating || order.status === 'DELIVERED' || order.status === 'CANCELLED'}
                 >
                   <SelectTrigger className="w-[160px]">
                     <SelectValue placeholder="Change status" />
                   </SelectTrigger>
                   <SelectContent>
-                    {statusOptions.map((status) => (
+                    {getValidNextStatuses(order.status).map((status) => (
                       <SelectItem key={status} value={status}>
                         {status.charAt(0) + status.slice(1).toLowerCase()}
                       </SelectItem>
@@ -137,7 +158,17 @@ export function OrderCard({
               )}
 
               <div className="flex gap-2 ml-auto">
-                {onEdit && (
+                {onCancel && (order.status === 'PENDING' || order.status === 'CONFIRMED') && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onCancel(order)}
+                    className="gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive"
+                  >
+                    Cancel Order
+                  </Button>
+                )}
+                {onEdit && order.status === 'PENDING' && (
                   <Button
                     variant="outline"
                     size="sm"

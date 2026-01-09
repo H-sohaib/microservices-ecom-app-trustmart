@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Package, Search } from 'lucide-react';
 import { productApi, ProductResponse, ProductRequest } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 import { ProductCard } from '@/components/products/ProductCard';
 import { ProductForm } from '@/components/products/ProductForm';
 import { DeleteProductDialog } from '@/components/products/DeleteProductDialog';
@@ -14,6 +15,7 @@ import { toast } from 'sonner';
 
 export default function Products() {
   const queryClient = useQueryClient();
+  const { isAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<ProductResponse | undefined>();
@@ -100,13 +102,15 @@ export default function Products() {
             Products
           </h1>
           <p className="text-muted-foreground">
-            Manage your product catalog
+            {isAdmin ? 'Manage your product catalog' : 'Browse our product catalog'}
           </p>
         </div>
-        <Button onClick={() => setFormOpen(true)} className="gap-2 bg-gradient-primary hover:opacity-90">
-          <Plus className="h-4 w-4" />
-          Add Product
-        </Button>
+        {isAdmin && (
+          <Button onClick={() => setFormOpen(true)} className="gap-2 bg-gradient-primary hover:opacity-90">
+            <Plus className="h-4 w-4" />
+            Add Product
+          </Button>
+        )}
       </div>
 
       <div className="relative max-w-md">
@@ -126,10 +130,12 @@ export default function Products() {
           description={
             search
               ? 'Try adjusting your search terms'
-              : 'Add your first product to get started'
+              : isAdmin
+                ? 'Add your first product to get started'
+                : 'No products available at the moment'
           }
           action={
-            !search && (
+            !search && isAdmin && (
               <Button onClick={() => setFormOpen(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Add Product
@@ -147,8 +153,8 @@ export default function Products() {
             >
               <ProductCard
                 product={product}
-                onEdit={handleEdit}
-                onDelete={setDeleteProduct}
+                onEdit={isAdmin ? handleEdit : undefined}
+                onDelete={isAdmin ? setDeleteProduct : undefined}
               />
             </div>
           ))}

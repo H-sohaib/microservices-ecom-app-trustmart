@@ -12,16 +12,20 @@ public class CommandResponse {
     private LocalDateTime date;
     private CommandStatus status;
     private BigDecimal totalPrice;
+    private String userId;
+    private String username;
     private List<CommandItemResponse> items;
 
     public CommandResponse() {
     }
 
-    public CommandResponse(Long commandId, LocalDateTime date, CommandStatus status, BigDecimal totalPrice, List<CommandItemResponse> items) {
+    public CommandResponse(Long commandId, LocalDateTime date, CommandStatus status, BigDecimal totalPrice, String userId, String username, List<CommandItemResponse> items) {
         this.commandId = commandId;
         this.date = date;
         this.status = status;
         this.totalPrice = totalPrice;
+        this.userId = userId;
+        this.username = username;
         this.items = items;
     }
 
@@ -65,6 +69,22 @@ public class CommandResponse {
         this.items = items;
     }
 
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
     public static CommandResponseBuilder builder() {
         return new CommandResponseBuilder();
     }
@@ -74,6 +94,8 @@ public class CommandResponse {
         private LocalDateTime date;
         private CommandStatus status;
         private BigDecimal totalPrice;
+        private String userId;
+        private String username;
         private List<CommandItemResponse> items;
 
         public CommandResponseBuilder commandId(Long commandId) {
@@ -96,13 +118,23 @@ public class CommandResponse {
             return this;
         }
 
+        public CommandResponseBuilder userId(String userId) {
+            this.userId = userId;
+            return this;
+        }
+
+        public CommandResponseBuilder username(String username) {
+            this.username = username;
+            return this;
+        }
+
         public CommandResponseBuilder items(List<CommandItemResponse> items) {
             this.items = items;
             return this;
         }
 
         public CommandResponse build() {
-            return new CommandResponse(commandId, date, status, totalPrice, items);
+            return new CommandResponse(commandId, date, status, totalPrice, userId, username, items);
         }
     }
 }

@@ -14,5 +14,11 @@ public interface CommandRepository extends JpaRepository<Command, Long> {
     List<Command> findByStatus(CommandStatus status);
 
     List<Command> findByDateBetween(LocalDateTime startDate, LocalDateTime endDate);
+
+    List<Command> findByUserId(String userId);
+
+    List<Command> findByUserIdAndStatus(String userId, CommandStatus status);
+
+    boolean existsByCommandIdAndUserId(Long commandId, String userId);
 }
 

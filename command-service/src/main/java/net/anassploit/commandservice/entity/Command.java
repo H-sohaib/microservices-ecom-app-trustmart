@@ -27,6 +27,12 @@ public class Command {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal totalPrice;
 
+    @Column(nullable = false)
+    private String userId;
+
+    @Column(nullable = false)
+    private String username;
+
     @OneToMany(mappedBy = "command", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JsonManagedReference
     private List<CommandItem> items = new ArrayList<>();
@@ -34,11 +40,13 @@ public class Command {
     public Command() {
     }
 
-    public Command(Long commandId, LocalDateTime date, CommandStatus status, BigDecimal totalPrice, List<CommandItem> items) {
+    public Command(Long commandId, LocalDateTime date, CommandStatus status, BigDecimal totalPrice, String userId, String username, List<CommandItem> items) {
         this.commandId = commandId;
         this.date = date;
         this.status = status;
         this.totalPrice = totalPrice;
+        this.userId = userId;
+        this.username = username;
         this.items = items != null ? items : new ArrayList<>();
     }
 
@@ -102,6 +110,22 @@ public class Command {
         this.items = items;
     }
 
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
     public static CommandBuilder builder() {
         return new CommandBuilder();
     }
@@ -111,6 +135,8 @@ public class Command {
         private LocalDateTime date;
         private CommandStatus status;
         private BigDecimal totalPrice;
+        private String userId;
+        private String username;
         private List<CommandItem> items = new ArrayList<>();
 
         public CommandBuilder commandId(Long commandId) {
@@ -133,13 +159,23 @@ public class Command {
             return this;
         }
 
+        public CommandBuilder userId(String userId) {
+            this.userId = userId;
+            return this;
+        }
+
+        public CommandBuilder username(String username) {
+            this.username = username;
+            return this;
+        }
+
         public CommandBuilder items(List<CommandItem> items) {
             this.items = items;
             return this;
         }
 
         public Command build() {
-            return new Command(commandId, date, status, totalPrice, items);
+            return new Command(commandId, date, status, totalPrice, userId, username, items);
         }
     }
 }

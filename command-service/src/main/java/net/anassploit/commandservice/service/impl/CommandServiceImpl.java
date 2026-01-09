@@ -38,8 +38,8 @@ public class CommandServiceImpl implements CommandService {
     }
 
     @Override
-    public CommandResponse createCommand(CommandRequest request) {
-        log.info("Creating new command with {} items", request.getItems().size());
+    public CommandResponse createCommand(CommandRequest request, String userId, String username) {
+        log.info("Creating new command with {} items for user: {}", request.getItems().size(), username);
 
         // Validate products and check stock availability
         List<StockUpdateRequest> stockUpdates = new ArrayList<>();
@@ -80,11 +80,13 @@ public class CommandServiceImpl implements CommandService {
                     .build());
         }
 
-        // Create command
+        // Create command with user info
         Command command = Command.builder()
                 .date(LocalDateTime.now())
                 .status(CommandStatus.PENDING)
                 .totalPrice(totalPrice)
+                .userId(userId)
+                .username(username)
                 .items(new ArrayList<>())
                 .build();
 
@@ -98,7 +100,7 @@ public class CommandServiceImpl implements CommandService {
 
         // Save command
         Command savedCommand = commandRepository.save(command);
-        log.info("Command created with ID: {}", savedCommand.getCommandId());
+        log.info("Command created with ID: {} for user: {}", savedCommand.getCommandId(), username);
 
         return mapToResponse(savedCommand);
     }
@@ -236,10 +238,15 @@ public class CommandServiceImpl implements CommandService {
     }
 
     @Override
-    public void cancelCommand(Long commandId) {
-        log.info("Cancelling command with ID: {}", commandId);
+    public void cancelCommand(Long commandId, String userId, boolean isAdmin) {
+        log.info("Cancelling command with ID: {} by user: {} (isAdmin: {})", commandId, userId, isAdmin);
         Command command = commandRepository.findById(commandId)
                 .orElseThrow(() -> new CommandNotFoundException("Command not found with ID: " + commandId));
+
+        // Check if user is owner or admin
+        if (!isAdmin && !command.getUserId().equals(userId)) {
+            throw new InvalidCommandStatusException("You don't have permission to cancel this order");
+        }
 
         // Only allow cancellation if command is PENDING or CONFIRMED
         if (command.getStatus() != CommandStatus.PENDING && command.getStatus() != CommandStatus.CONFIRMED) {
@@ -311,8 +318,34 @@ public class CommandServiceImpl implements CommandService {
                 .date(command.getDate())
                 .status(command.getStatus())
                 .totalPrice(command.getTotalPrice())
+                .userId(command.getUserId())
+                .username(command.getUsername())
                 .items(itemResponses)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CommandResponse> getCommandsByUserId(String userId) {
+        log.info("Fetching commands for user: {}", userId);
+        return commandRepository.findByUserId(userId).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CommandResponse> getCommandsByUserIdAndStatus(String userId, CommandStatus status) {
+        log.info("Fetching commands for user: {} with status: {}", userId, status);
+        return commandRepository.findByUserIdAndStatus(userId, status).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isCommandOwner(Long commandId, String userId) {
+        return commandRepository.existsByCommandIdAndUserId(commandId, userId);
     }
 }
 
