@@ -7,10 +7,24 @@ This guide explains how to run the entire TrustMart microservices application us
 - Docker Desktop installed and running
 - Docker Compose v2.x or higher
 - At least 8GB RAM allocated to Docker
+- **Existing Keycloak setup** (with realm, clients, roles, and users already configured)
 
 ## Quick Start
 
-### 1. Build and Start All Services
+### 1. Start Your Existing Keycloak Containers
+
+First, start your existing Keycloak and PostgreSQL containers:
+
+```bash
+docker start keycloak-postgres keycloak
+```
+
+Verify they are running:
+```bash
+docker ps | grep keycloak
+```
+
+### 2. Build and Start All Services
 
 ```bash
 docker-compose up --build
@@ -18,14 +32,15 @@ docker-compose up --build
 
 This will start all services:
 - **MySQL** (port 3307) - Database for products and commands
-- **Keycloak** (port 8080) - Authentication server
 - **Discovery Service** (port 8761) - Eureka service registry
 - **Gateway Service** (port 8083) - API Gateway
 - **Product Service** (port 8081) - Product management
 - **Command Service** (port 8082) - Order management
 - **Frontend** (port 8084) - React application
 
-### 2. Access the Application
+**Note:** Keycloak (port 8080) uses your existing container with all configurations preserved.
+
+### 3. Access the Application
 
 | Service | URL |
 |---------|-----|
@@ -34,25 +49,12 @@ This will start all services:
 | Keycloak Admin | http://localhost:8080 |
 | Eureka Dashboard | http://localhost:8761 |
 
-### 3. Default Credentials
+### 4. Default Credentials
 
-**Keycloak Admin:**
+Your existing Keycloak credentials apply. Default admin:
 - Username: `admin`
 - Password: `admin`
 
-## First Time Setup
-
-### Configure Keycloak Realm
-
-After first startup, you need to configure Keycloak:
-
-1. Go to http://localhost:8080
-2. Login with admin/admin
-3. Create a new realm called `trustmart`
-4. Create roles: `ADMIN` and `CLIENT`
-5. Create a client called `trustmart-frontend` (public client)
-6. Create a client called `trustmart-backend` (confidential client)
-7. Create test users and assign roles
 
 ## Docker Commands
 

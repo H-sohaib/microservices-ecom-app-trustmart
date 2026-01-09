@@ -26,48 +26,10 @@ services:
     restart: unless-stopped
 
   # ===========================================
-  # KEYCLOAK (uses existing postgres container)
+  # KEYCLOAK - Using existing containers
+  # Start your existing Keycloak containers first:
+  #   docker start keycloak-postgres keycloak
   # ===========================================
-  keycloak-postgres:
-    image: postgres:15
-    container_name: trustmart-keycloak-postgres
-    environment:
-      POSTGRES_DB: keycloak
-      POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: keycloak
-    volumes:
-      - keycloak_postgres_data:/var/lib/postgresql/data
-    networks:
-      - trustmart-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U keycloak"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  keycloak:
-    image: quay.io/keycloak/keycloak:latest
-    container_name: trustmart-keycloak
-    environment:
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/keycloak
-      KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: keycloak
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-      KC_HOSTNAME_STRICT: "false"
-      KC_HTTP_ENABLED: "true"
-      KC_PROXY: edge
-    command: start-dev
-    ports:
-      - "8080:8080"
-    depends_on:
-      keycloak-postgres:
-        condition: service_healthy
-    networks:
-      - trustmart-network
-    restart: unless-stopped
 
   # ===========================================
   # DISCOVERY SERVICE (Eureka)
@@ -83,6 +45,7 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
     networks:
       - trustmart-network
+      - keycloak-network
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8761/actuator/health"]
       interval: 30s
@@ -103,7 +66,8 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-service:8761/eureka/
-      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://keycloak:8080/realms/trustmart
+      # Use host.docker.internal for Keycloak since frontend needs to access it from browser
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://host.docker.internal:8080/realms/trustmart
       - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://keycloak:8080/realms/trustmart/protocol/openid-connect/certs
       - KEYCLOAK_AUTH_SERVER_URL=http://keycloak:8080
       - KEYCLOAK_REALM=trustmart
@@ -114,10 +78,9 @@ services:
     depends_on:
       discovery-service:
         condition: service_healthy
-      keycloak:
-        condition: service_started
     networks:
       - trustmart-network
+      - keycloak-network
     restart: unless-stopped
 
   # ===========================================
@@ -196,11 +159,14 @@ services:
 networks:
   trustmart-network:
     driver: bridge
+  # Connect to existing Keycloak network
+  keycloak-network:
+    external: true
+    name: resources_keycloak-network
 
 # ===========================================
 # VOLUMES
 # ===========================================
 volumes:
   mysql_data:
-  keycloak_postgres_data:
 
