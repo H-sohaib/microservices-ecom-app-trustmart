@@ -243,20 +243,34 @@ jobs:
           category: 'trivy-${{ matrix.service.name }}'
         continue-on-error: true
 
-      - name: Run Trivy and generate HTML report
+      - name: Run Trivy and generate table report
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: trustmart/${{ matrix.service.name }}:${{ github.sha }}
-          format: 'template'
-          template: '@/contrib/html.tpl'
-          output: 'trivy-report-${{ matrix.service.name }}.html'
+          format: 'table'
+          output: 'trivy-report-${{ matrix.service.name }}.txt'
           severity: 'CRITICAL,HIGH,MEDIUM'
 
-      - name: Upload Trivy HTML Report
+      - name: Run Trivy and generate JSON report
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: trustmart/${{ matrix.service.name }}:${{ github.sha }}
+          format: 'json'
+          output: 'trivy-report-${{ matrix.service.name }}.json'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Display Trivy scan results
+        run: |
+          echo "=== Trivy Scan Results for ${{ matrix.service.name }} ==="
+          cat trivy-report-${{ matrix.service.name }}.txt
+
+      - name: Upload Trivy Reports
         uses: actions/upload-artifact@v4
         with:
           name: trivy-report-${{ matrix.service.name }}
-          path: trivy-report-${{ matrix.service.name }}.html
+          path: |
+            trivy-report-${{ matrix.service.name }}.txt
+            trivy-report-${{ matrix.service.name }}.json
           retention-days: 30
 
   # ===========================================
@@ -288,7 +302,7 @@ jobs:
           echo "## 📁 Reports Available" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- OWASP Dependency Check Report (HTML)" >> $GITHUB_STEP_SUMMARY
-          echo "- Trivy Container Scan Reports (per service)" >> $GITHUB_STEP_SUMMARY
+          echo "- Trivy Container Scan Reports (TXT and JSON, per service)" >> $GITHUB_STEP_SUMMARY
           echo "- npm Audit Report (Frontend)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Download artifacts from the Actions tab for detailed reports." >> $GITHUB_STEP_SUMMARY
