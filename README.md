@@ -8,21 +8,22 @@ A comprehensive e-commerce platform built using microservices architecture with 
 
 1. [Project Overview](#project-overview)
 2. [Architecture](#architecture)
-3. [Technology Stack](#technology-stack)
-4. [Services Description](#services-description)
-5. [Prerequisites](#prerequisites)
-6. [Installation and Setup](#installation-and-setup)
-7. [Running the Application](#running-the-application)
-8. [API Documentation](#api-documentation)
-9. [Authentication and Authorization](#authentication-and-authorization)
-10. [DevSecOps Pipeline](#devsecops-pipeline)
-11. [Logging and Monitoring](#logging-and-monitoring)
-12. [Screenshots](#screenshots)
-13. [Project Structure](#project-structure)
-14. [Environment Variables](#environment-variables)
-15. [Troubleshooting](#troubleshooting)
-16. [Contributing](#contributing)
-17. [License](#license)
+3. [Sequence Diagrams](#sequence-diagrams)
+4. [Technology Stack](#technology-stack)
+5. [Services Description](#services-description)
+6. [Prerequisites](#prerequisites)
+7. [Installation and Setup](#installation-and-setup)
+8. [Running the Application](#running-the-application)
+9. [API Documentation](#api-documentation)
+10. [Authentication and Authorization](#authentication-and-authorization)
+11. [DevSecOps Pipeline](#devsecops-pipeline)
+12. [Logging and Monitoring](#logging-and-monitoring)
+13. [Screenshots](#screenshots)
+14. [Project Structure](#project-structure)
+15. [Environment Variables](#environment-variables)
+16. [Troubleshooting](#troubleshooting)
+17. [Contributing](#contributing)
+18. [License](#license)
 
 ---
 
@@ -85,6 +86,244 @@ The application follows a microservices architecture pattern with the following 
 2. **Gateway to Services**: The Gateway authenticates requests using JWT tokens from Keycloak and routes them to appropriate microservices
 3. **Service Discovery**: All services register with Eureka Discovery Service for dynamic service location
 4. **Inter-service Communication**: Command Service communicates with Product Service via Feign Client for stock management
+
+---
+
+## Sequence Diagrams
+
+### Order Creation Process
+
+The following diagram illustrates the complete flow when a client creates a new order:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client as React Frontend
+    participant KC as Keycloak
+    participant GW as Gateway Service
+    participant CS as Command Service
+    participant PS as Product Service
+    participant DB as MySQL Database
+
+    Client->>KC: Login (username, password)
+    KC-->>Client: JWT Access Token
+
+    Client->>GW: POST /api/commands (JWT + OrderData)
+    GW->>KC: Validate JWT Token
+    KC-->>GW: Token Valid + User Info
+
+    GW->>GW: Extract User ID, Username, Roles
+    GW->>CS: Forward Request + X-User-Id, X-User-Name Headers
+
+    loop For each item in order
+        CS->>PS: GET /api/products/{productId}
+        PS->>DB: Query Product
+        DB-->>PS: Product Data
+        PS-->>CS: ProductResponse (name, price, stock)
+
+        CS->>PS: GET /api/products/{productId}/check-stock?quantity=X
+        PS-->>CS: true/false (stock available)
+    end
+
+    alt Stock Available for All Items
+        CS->>PS: POST /api/products/reduce-stock (items[])
+        PS->>DB: UPDATE products SET stock = stock - quantity
+        DB-->>PS: Updated
+        PS-->>CS: 200 OK
+
+        CS->>DB: INSERT INTO commands (user_id, status, total)
+        DB-->>CS: Command Created
+        CS->>DB: INSERT INTO command_items (command_id, product_id, qty, price)
+        DB-->>CS: Items Created
+
+        CS-->>GW: 201 Created (CommandResponse)
+        GW-->>Client: 201 Created (CommandResponse)
+    else Stock Not Available
+        CS-->>GW: 400 Bad Request (Insufficient Stock)
+        GW-->>Client: 400 Bad Request (Error Message)
+    end
+```
+
+### Order Status Update Process
+
+The following diagram shows how an administrator updates an order status:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Admin as Admin Frontend
+    participant KC as Keycloak
+    participant GW as Gateway Service
+    participant CS as Command Service
+    participant DB as MySQL Database
+
+    Admin->>KC: Login (admin credentials)
+    KC-->>Admin: JWT Access Token (ADMIN role)
+
+    Admin->>GW: PATCH /api/commands/{id}/status (JWT + newStatus)
+    GW->>KC: Validate JWT Token
+    KC-->>GW: Token Valid + Roles: [ADMIN]
+
+    GW->>GW: Check ADMIN role
+    GW->>CS: Forward Request + X-User-Roles Header
+
+    CS->>DB: SELECT * FROM commands WHERE id = {id}
+    DB-->>CS: Current Command (status: PENDING)
+
+    CS->>CS: Validate Status Transition
+    Note over CS: PENDING -> CONFIRMED (Valid)
+    Note over CS: PENDING -> DELIVERED (Invalid)
+
+    alt Valid Transition
+        CS->>DB: UPDATE commands SET status = newStatus
+        DB-->>CS: Updated
+        CS-->>GW: 200 OK (CommandResponse)
+        GW-->>Admin: 200 OK (CommandResponse)
+    else Invalid Transition
+        CS-->>GW: 400 Bad Request (Invalid Transition)
+        GW-->>Admin: 400 Bad Request (Error Message)
+    end
+```
+
+### Order Cancellation Process
+
+The following diagram illustrates the order cancellation flow with stock restoration:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as Client/Admin Frontend
+    participant KC as Keycloak
+    participant GW as Gateway Service
+    participant CS as Command Service
+    participant PS as Product Service
+    participant DB as MySQL Database
+
+    User->>KC: Login
+    KC-->>User: JWT Access Token
+
+    User->>GW: POST /api/commands/{id}/cancel (JWT)
+    GW->>KC: Validate JWT Token
+    KC-->>GW: Token Valid + User Info + Roles
+
+    GW->>CS: Forward Request + X-User-Id, X-User-Roles
+
+    CS->>DB: SELECT * FROM commands WHERE id = {id}
+    DB-->>CS: Command Data (userId, status, items)
+
+    CS->>CS: Check Authorization
+    Note over CS: User is owner OR has ADMIN role
+
+    alt Authorized
+        CS->>CS: Validate Cancellation Allowed
+        Note over CS: Cannot cancel DELIVERED orders
+
+        alt Cancellation Allowed
+            CS->>DB: SELECT * FROM command_items WHERE command_id = {id}
+            DB-->>CS: Order Items (productId, quantity)
+
+            CS->>PS: POST /api/products/restore-stock (items[])
+            PS->>DB: UPDATE products SET stock = stock + quantity
+            DB-->>PS: Stock Restored
+            PS-->>CS: 200 OK
+
+            CS->>DB: UPDATE commands SET status = CANCELLED
+            DB-->>CS: Updated
+
+            CS-->>GW: 200 OK
+            GW-->>User: 200 OK (Order Cancelled)
+        else Already Delivered
+            CS-->>GW: 400 Bad Request (Cannot Cancel)
+            GW-->>User: 400 Bad Request (Error)
+        end
+    else Not Authorized
+        CS-->>GW: 403 Forbidden
+        GW-->>User: 403 Forbidden
+    end
+```
+
+### View Orders Process (Role-Based Filtering)
+
+The following diagram shows how order listing works differently for clients and admins:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as Frontend
+    participant KC as Keycloak
+    participant GW as Gateway Service
+    participant CS as Command Service
+    participant DB as MySQL Database
+
+    User->>KC: Login
+    KC-->>User: JWT Access Token
+
+    User->>GW: GET /api/commands (JWT)
+    GW->>KC: Validate JWT Token
+    KC-->>GW: Token Valid + User Info + Roles
+
+    GW->>CS: Forward + X-User-Id, X-User-Roles
+
+    CS->>CS: Check User Role
+
+    alt User has ADMIN Role
+        CS->>DB: SELECT * FROM commands
+        DB-->>CS: All Orders (all users)
+        CS-->>GW: CommandResponse[] (all orders)
+        GW-->>User: All Orders List
+    else User has CLIENT Role
+        CS->>DB: SELECT * FROM commands WHERE user_id = {userId}
+        DB-->>CS: User's Orders Only
+        CS-->>GW: CommandResponse[] (user's orders)
+        GW-->>User: Personal Orders List
+    end
+```
+
+### Authentication Flow
+
+The following diagram shows the complete authentication process:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Browser as Browser
+    participant Frontend as React App
+    participant KC as Keycloak
+    participant GW as Gateway Service
+
+    Browser->>Frontend: Access Application
+    Frontend->>Frontend: Check Authentication State
+
+    alt Not Authenticated
+        Frontend->>KC: Redirect to Login Page
+        Browser->>KC: Display Login Form
+        KC->>KC: User enters credentials
+        KC->>KC: Validate credentials
+
+        alt Valid Credentials
+            KC->>KC: Generate JWT Tokens
+            KC-->>Frontend: Redirect with Authorization Code
+            Frontend->>KC: Exchange Code for Tokens
+            KC-->>Frontend: Access Token + Refresh Token
+            Frontend->>Frontend: Store Tokens
+            Frontend-->>Browser: Show Application
+        else Invalid Credentials
+            KC-->>Browser: Show Error Message
+        end
+    else Already Authenticated
+        Frontend->>Frontend: Check Token Expiry
+
+        alt Token Expired
+            Frontend->>KC: Refresh Token Request
+            KC-->>Frontend: New Access Token
+        end
+
+        Frontend->>GW: API Request + Bearer Token
+        GW->>KC: Validate Token
+        KC-->>GW: Token Valid
+        GW-->>Frontend: API Response
+    end
+```
 
 ---
 
