@@ -4,6 +4,7 @@ import feign.FeignException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -19,11 +20,24 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final Logger errorLog = LoggerFactory.getLogger("ERROR_LOG");
+
+    private String getUserContext(HttpServletRequest request) {
+        String userId = request.getHeader("X-User-Id");
+        String username = request.getHeader("X-User-Name");
+        String traceId = MDC.get("traceId");
+        return String.format("traceId=%s, userId=%s, username=%s",
+                traceId != null ? traceId : "N/A",
+                userId != null ? userId : "anonymous",
+                username != null ? username : "anonymous");
+    }
 
     @ExceptionHandler(CommandNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleCommandNotFoundException(
             CommandNotFoundException ex, HttpServletRequest request) {
-        log.error("Command not found: {}", ex.getMessage());
+        log.error("APPLICATION_ERROR | type=CommandNotFound | path={} | message={} | context=[{}]",
+                request.getRequestURI(), ex.getMessage(), getUserContext(request));
+        errorLog.error("CommandNotFoundException: {} | {}", ex.getMessage(), getUserContext(request));
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.NOT_FOUND.value())
@@ -37,7 +51,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ProductNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleProductNotFoundException(
             ProductNotFoundException ex, HttpServletRequest request) {
-        log.error("Product not found: {}", ex.getMessage());
+        log.error("APPLICATION_ERROR | type=ProductNotFound | path={} | message={} | context=[{}]",
+                request.getRequestURI(), ex.getMessage(), getUserContext(request));
+        errorLog.error("ProductNotFoundException: {} | {}", ex.getMessage(), getUserContext(request));
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.NOT_FOUND.value())
@@ -51,7 +67,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InsufficientStockException.class)
     public ResponseEntity<ErrorResponse> handleInsufficientStockException(
             InsufficientStockException ex, HttpServletRequest request) {
-        log.error("Insufficient stock: {}", ex.getMessage());
+        log.error("APPLICATION_ERROR | type=InsufficientStock | path={} | message={} | context=[{}]",
+                request.getRequestURI(), ex.getMessage(), getUserContext(request));
+        errorLog.error("InsufficientStockException: {} | {}", ex.getMessage(), getUserContext(request));
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.BAD_REQUEST.value())
@@ -65,7 +83,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidCommandStatusException.class)
     public ResponseEntity<ErrorResponse> handleInvalidCommandStatusException(
             InvalidCommandStatusException ex, HttpServletRequest request) {
-        log.error("Invalid command status: {}", ex.getMessage());
+        log.error("APPLICATION_ERROR | type=InvalidCommandStatus | path={} | message={} | context=[{}]",
+                request.getRequestURI(), ex.getMessage(), getUserContext(request));
+        errorLog.error("InvalidCommandStatusException: {} | {}", ex.getMessage(), getUserContext(request));
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.BAD_REQUEST.value())
@@ -79,7 +99,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(FeignException.class)
     public ResponseEntity<ErrorResponse> handleFeignException(
             FeignException ex, HttpServletRequest request) {
-        log.error("Feign exception: {}", ex.getMessage());
+        log.error("APPLICATION_ERROR | type=FeignException | path={} | message={} | context=[{}]",
+                request.getRequestURI(), ex.getMessage(), getUserContext(request));
+        errorLog.error("FeignException: {} | {}", ex.getMessage(), getUserContext(request));
         HttpStatus status = HttpStatus.valueOf(ex.status() > 0 ? ex.status() : 500);
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
@@ -94,13 +116,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
             MethodArgumentNotValidException ex, HttpServletRequest request) {
-        log.error("Validation error: {}", ex.getMessage());
+        log.error("APPLICATION_ERROR | type=ValidationError | path={} | context=[{}]",
+                request.getRequestURI(), getUserContext(request));
         Map<String, String> validationErrors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
             validationErrors.put(fieldName, errorMessage);
         });
+        errorLog.error("ValidationError: fields={} | {}", validationErrors.keySet(), getUserContext(request));
 
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
@@ -116,7 +140,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
             Exception ex, HttpServletRequest request) {
-        log.error("Unexpected error: {}", ex.getMessage(), ex);
+        log.error("APPLICATION_ERROR | type=UnexpectedError | path={} | message={} | context=[{}]",
+                request.getRequestURI(), ex.getMessage(), getUserContext(request), ex);
+        errorLog.error("UnexpectedError: {} | {} | stackTrace available in main log",
+                ex.getMessage(), getUserContext(request));
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
@@ -127,4 +154,3 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
-
