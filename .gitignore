@@ -108,3 +108,12 @@ node_modules/
 .env.local
 .env.*.local
 
+# Security Scanning Reports
+security-reports/
+**/dependency-check-report.*
+**/trivy-report.*
+npm-audit-report.json
+
+# SonarQube
+.scannerwork/
+.sonar/

@@ -1,0 +1,16 @@
+# Trivy Ignore File
+# ==================
+# List CVE IDs to ignore (one per line)
+# Use this for false positives or accepted risks
+#
+# Format: CVE-YYYY-NNNNN
+#
+# IMPORTANT: Document why each CVE is being ignored!
+# Review this file regularly and remove entries when fixes are available.
+
+# Example (uncomment and modify as needed):
+# CVE-2021-44228  # Log4Shell - Not affected, using Logback instead
+
+# Alpine base image false positives (if any):
+# CVE-XXXX-XXXXX  # Description of why it's ignored
+

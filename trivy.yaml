@@ -1,0 +1,54 @@
+# Trivy Configuration File
+# ========================
+# This file configures how Trivy scans container images
+
+# Severity levels to check
+severity:
+  - CRITICAL
+  - HIGH
+  - MEDIUM
+
+# Ignore unfixed vulnerabilities (no patch available yet)
+ignore-unfixed: false
+
+# Skip specific vulnerability IDs (false positives or accepted risks)
+# ignorefile: .trivyignore
+
+# Output format
+format: table
+
+# Exit code when vulnerabilities are found
+# 0 = don't fail, 1 = fail on any vulnerability
+exit-code: 0
+
+# Timeout for the scan
+timeout: 10m
+
+# Cache settings
+cache-dir: /tmp/trivy-cache
+
+# Vulnerability database settings
+db:
+  skip-update: false
+
+# What to scan in images
+security-checks:
+  - vuln       # OS packages and application dependencies
+  - secret     # Hardcoded secrets
+  - config     # Misconfigurations
+
+# Ignore specific files/directories
+skip-files: []
+
+skip-dirs:
+  - /usr/share/doc
+  - /var/cache
+
+# License scanning (optional)
+license:
+  full: false
+  ignored:
+    - MIT
+    - Apache-2.0
+    - BSD-3-Clause
+
