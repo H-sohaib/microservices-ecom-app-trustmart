@@ -1,10 +1,11 @@
-target/
-.git
-.gitignore
-*.md
-.mvn
-mvnw
-mvnw.cmd
-*.iml
+target/*
 .idea/
+*.iml
+mvnw.cmd
+mvnw
+.mvn
+*.md
+.gitignore
+.git
+!target/*.jar
 
