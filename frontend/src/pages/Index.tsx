@@ -59,23 +59,23 @@ export default function Index() {
       <section className="relative py-16 md:py-24 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-hero opacity-5" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.15),transparent_50%)]" />
-        
+
         <div className="relative container">
           <div className="max-w-3xl mx-auto text-center animate-fade-in">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-6">
               <Sparkles className="h-4 w-4" />
               <span className="text-sm font-medium">Welcome to TrustMart</span>
             </div>
-            
+
             <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
               Your Trusted
               <span className="text-gradient-primary block">E-Commerce Partner</span>
             </h1>
-            
+
             <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Discover quality products, manage your inventory, and track orders seamlessly with TrustMart's intuitive platform.
             </p>
-            
+
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link to="/products">
                 <Button size="lg" className="gap-2 bg-gradient-primary hover:opacity-90 transition-opacity text-lg px-8">

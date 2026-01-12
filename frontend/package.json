@@ -1,8 +1,8 @@
 {
-  "name": "trustmart-frontend",
+  "name": "ecom-frontend",
   "private": true,
   "version": "1.0.0",
-  "description": "TrustMart E-Commerce Frontend - React application for the microservices e-commerce platform",
+  "description": "E-Commerce Frontend - React application for the microservices e-commerce platform",
   "type": "module",
   "scripts": {
     "dev": "vite",
