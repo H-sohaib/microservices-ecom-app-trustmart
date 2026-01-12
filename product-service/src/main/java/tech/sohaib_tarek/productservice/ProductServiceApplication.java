@@ -5,9 +5,15 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+/**
+ * Product Microservice - Main Application
+ * 
+ * Manages product catalog with CRUD operations and stock management.
+ * Integrates with Eureka for service discovery in the microservices architecture.
+ */
 @SpringBootApplication
-@EnableDiscoveryClient
-@EnableScheduling
+@EnableDiscoveryClient // Registers with Eureka for dynamic service discovery
+@EnableScheduling // Enables background scheduled tasks
 public class ProductServiceApplication {
 
     public static void main(String[] args) {

@@ -71,6 +71,10 @@ public class ProductController {
         return ResponseEntity.ok(available);
     }
 
+    /**
+     * Reduce product stock - Called by Command Service when orders are placed
+     * Transactional operation to ensure data consistency across order creation
+     */
     @PostMapping("/reduce-stock")
     public ResponseEntity<Void> reduceStock(@Valid @RequestBody List<StockUpdateRequest> stockUpdates) {
         log.info("Received request to reduce stock for {} products", stockUpdates.size());

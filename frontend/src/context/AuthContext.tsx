@@ -1,6 +1,19 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import keycloak from '@/lib/keycloak';
+/**
+ * Authentication Context using Keycloak
+ *
+ * Manages user authentication state and provides authentication methods.
+ * Integrates with Keycloak for OAuth2/OIDC authentication.
+ */
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
+import keycloak from "@/lib/keycloak";
 
+// Authentication context interface with all auth-related state and methods
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -19,7 +32,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
@@ -50,12 +63,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [extractRoles]);
 
   useEffect(() => {
+    /**
+     * Initialize Keycloak authentication
+     *
+     * - check-sso: Checks if user is already logged in (SSO)
+     * - silent-check-sso: Uses iframe for silent auth check
+     * - PKCE: Enhanced security for OAuth2 flows
+     */
     const initKeycloak = async () => {
       try {
         const authenticated = await keycloak.init({
-          onLoad: 'check-sso',
-          silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
-          pkceMethod: 'S256',
+          onLoad: "check-sso", // Check if already authenticated
+          silentCheckSsoRedirectUri:
+            window.location.origin + "/silent-check-sso.html",
+          pkceMethod: "S256", // Proof Key for Code Exchange (security enhancement)
         });
 
         setIsAuthenticated(authenticated);
@@ -66,14 +87,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Token refresh
         keycloak.onTokenExpired = () => {
-          keycloak.updateToken(30).then((refreshed) => {
-            if (refreshed) {
-              updateAuthState();
-            }
-          }).catch(() => {
-            console.error('Failed to refresh token');
-            keycloak.logout();
-          });
+          keycloak
+            .updateToken(30)
+            .then((refreshed) => {
+              if (refreshed) {
+                updateAuthState();
+              }
+            })
+            .catch(() => {
+              console.error("Failed to refresh token");
+              keycloak.logout();
+            });
         };
 
         keycloak.onAuthSuccess = () => {
@@ -86,9 +110,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUsername(undefined);
           setRoles([]);
         };
-
       } catch (error) {
-        console.error('Keycloak initialization failed:', error);
+        console.error("Keycloak initialization failed:", error);
         setIsAuthenticated(false);
       } finally {
         setIsLoading(false);
@@ -116,14 +139,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await keycloak.updateToken(30);
       return keycloak.token;
     } catch (error) {
-      console.error('Failed to refresh token:', error);
+      console.error("Failed to refresh token:", error);
       keycloak.logout();
       return undefined;
     }
   }, []);
 
-  const isAdmin = roles.includes('ADMIN');
-  const isClient = roles.includes('CLIENT');
+  const isAdmin = roles.includes("ADMIN");
+  const isClient = roles.includes("CLIENT");
 
   const value: AuthContextType = {
     isAuthenticated,
@@ -140,4 +163,3 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
-

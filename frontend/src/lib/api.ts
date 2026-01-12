@@ -1,9 +1,16 @@
+/**
+ * API Client Module
+ *
+ * Centralizes all HTTP requests to the backend microservices.
+ * Handles authentication, error handling, and response parsing.
+ */
 import keycloak from "./keycloak";
 
+// API Gateway base URL - defaults to local development if not configured
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8083";
 
-// Types based on OpenAPI specs
+// TypeScript interfaces based on OpenAPI specifications
 export interface ProductRequest {
   name: string;
   description?: string;
@@ -61,7 +68,11 @@ export interface CommandStatusUpdateRequest {
   status: CommandStatus;
 }
 
-// API Error handling
+/**
+ * Custom API Error Class
+ *
+ * Extends Error to include HTTP status code for better error handling
+ */
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -69,11 +80,21 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Response Handler
+ *
+ * Processes HTTP responses and handles errors consistently:
+ * - 401: Authentication required
+ * - 403: Permission denied
+ * - Other errors: Generic error message
+ */
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
+    // Handle authentication errors
     if (response.status === 401) {
       throw new ApiError(401, "Unauthorized. Please login.");
     }
+    // Handle authorization errors
     if (response.status === 403) {
       throw new ApiError(
         403,

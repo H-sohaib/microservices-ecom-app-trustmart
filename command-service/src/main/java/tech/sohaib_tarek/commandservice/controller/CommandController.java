@@ -46,7 +46,7 @@ public class CommandController {
 
     CommandResponse response = commandService.getCommandById(commandId);
 
-    // If not admin, check if user owns this command
+    // Authorization check: Users can only view their own orders unless they have ADMIN role
     if (!isAdmin && !response.getUserId().equals(userId)) {
       return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
     }

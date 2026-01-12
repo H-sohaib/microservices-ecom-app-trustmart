@@ -1,5 +1,9 @@
 services:
-  # DATABASE
+  # ====================
+  # DATABASE SERVICE
+  # ====================
+  # MySQL 8.0 database for all microservices
+  # Separate databases created via init-db.sql script
   mysql:
     image: mysql:8.0
     container_name: ecommerce-mysql
@@ -8,7 +12,7 @@ services:
       MYSQL_USER: ecommerce
       MYSQL_PASSWORD: ecommerce
     ports:
-      - "3307:3306"
+      - "3307:3306" # Mapped to 3307 to avoid conflicts with local MySQL
     volumes:
       - mysql_data:/var/lib/mysql
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
@@ -22,14 +26,18 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # DISCOVERY SERVICE (Eureka)
+  # ====================
+  # SERVICE DISCOVERY (Eureka)
+  # ====================
+  # Netflix Eureka server for service registration and discovery
+  # All microservices register here for inter-service communication
   discovery-service:
     build:
       context: ./discovery-service
       dockerfile: Dockerfile
     container_name: ecommerce-discovery
     ports:
-      - "8761:8761"
+      - "8761:8761" # Eureka dashboard and API
     environment:
       - SPRING_PROFILES_ACTIVE=docker
     networks:
@@ -48,14 +56,18 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # GATEWAY SERVICE
+  # ====================
+  # API GATEWAY SERVICE
+  # ====================
+  # Spring Cloud Gateway - Single entry point for all client requests
+  # Handles routing, authentication, and cross-cutting concerns
   gateway-service:
     build:
       context: ./gateway-service
       dockerfile: Dockerfile
     container_name: ecommerce-gateway
     ports:
-      - "8083:8083"
+      - "8083:8083" # Main API gateway endpoint
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-service:8761/eureka/
@@ -76,14 +88,18 @@ services:
       - micro-network
     restart: unless-stopped
 
-  # PRODUCT SERVICE
+  # ====================
+  # PRODUCT MICROSERVICE
+  # ====================
+  # Manages product catalog: CRUD operations, stock management
+  # Uses separate productdb database
   product-service:
     build:
       context: ./product-service
       dockerfile: Dockerfile
     container_name: ecommerce-product
     ports:
-      - "8081:8081"
+      - "8081:8081" # Product service API port
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-service:8761/eureka/
@@ -117,14 +133,18 @@ services:
       start_period: 60s
     restart: unless-stopped
 
-  # COMMAND SERVICE
+  # ====================
+  # COMMAND/ORDER MICROSERVICE
+  # ====================
+  # Handles order processing and management
+  # Uses separate commanddb database for order data
   command-service:
     build:
       context: ./command-service
       dockerfile: Dockerfile
     container_name: ecommerce-command
     ports:
-      - "8082:8082"
+      - "8082:8082" # Command service API port
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-service:8761/eureka/
@@ -160,14 +180,18 @@ services:
       start_period: 60s
     restart: unless-stopped
 
-  # FRONTEND
+  # ====================
+  # FRONTEND APPLICATION
+  # ====================
+  # React + TypeScript SPA served with Node.js
+  # Communicates with backend through API Gateway
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: frontend
     ports:
-      - "8084:3000"
+      - "8084:3000" # External:Internal port mapping
     depends_on:
       gateway-service:
         condition: service_started
@@ -179,11 +203,19 @@ services:
       - micro-network
     restart: unless-stopped
 
-# NETWORKS
+# ====================
+# DOCKER NETWORKS
+# ====================
+# Bridge network for inter-container communication
+# All services on this network can communicate using service names
 networks:
   micro-network:
     driver: bridge
 
-# VOLUMES
+# ====================
+# DOCKER VOLUMES
+# ====================
+# Persistent storage for MySQL database
+# Data survives container restarts and removals
 volumes:
   mysql_data:
